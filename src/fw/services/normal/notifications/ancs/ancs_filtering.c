@@ -3,6 +3,8 @@
 
 #include "ancs_filtering.h"
 
+#include <string.h>
+
 #include "drivers/rtc.h"
 #include "kernel/pbl_malloc.h"
 #include "services/normal/notifications/alerts_preferences.h"
@@ -129,4 +131,28 @@ bool ancs_filtering_is_muted(const iOSNotifPrefs *app_notif_prefs) {
   localtime_r(&now, &now_tm);
 
   return mute_type & (1 << now_tm.tm_wday);
+}
+
+bool ancs_filtering_matches_filter_pattern(const iOSNotifPrefs *app_notif_prefs,
+                                           const char *title,
+                                           const char *body) {
+  if (!app_notif_prefs) {
+    return false;
+  }
+
+  const char *filter_pattern = attribute_get_string(&app_notif_prefs->attr_list,
+                                                    AttributeIdFilterPattern, NULL);
+  if (!filter_pattern || filter_pattern[0] == '\0') {
+    return false;
+  }
+
+  // Check if the pattern matches the title or body (case-sensitive substring match)
+  if (title && strstr(title, filter_pattern)) {
+    return true;
+  }
+  if (body && strstr(body, filter_pattern)) {
+    return true;
+  }
+
+  return false;
 }

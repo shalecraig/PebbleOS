@@ -228,6 +228,28 @@ static bool prv_should_ignore_because_muted(const iOSNotifPrefs *app_notif_prefs
   return ancs_filtering_is_muted(app_notif_prefs);
 }
 
+static bool prv_should_ignore_because_content_filtered(const iOSNotifPrefs *app_notif_prefs,
+                                                       const ANCSAttribute *title,
+                                                       const ANCSAttribute *message) {
+  // Convert title and message to C strings for pattern matching
+  char title_buffer[title ? title->length + 1 : 1];
+  char message_buffer[message ? message->length + 1 : 1];
+
+  const char *title_str = NULL;
+  const char *message_str = NULL;
+
+  if (title && title->length > 0) {
+    pstring_pstring16_to_string(&title->pstr, title_buffer);
+    title_str = title_buffer;
+  }
+  if (message && message->length > 0) {
+    pstring_pstring16_to_string(&message->pstr, message_buffer);
+    message_str = message_buffer;
+  }
+
+  return ancs_filtering_matches_filter_pattern(app_notif_prefs, title_str, message_str);
+}
+
 static bool prv_should_ignore_notification(uint32_t uid,
                                            time_t timestamp,
                                            ANCSAttribute **notif_attributes,
@@ -243,6 +265,17 @@ static bool prv_should_ignore_notification(uint32_t uid,
     pstring_pstring16_to_string(&app_id->pstr, app_id_buffer);
 
     PBL_LOG(LOG_LEVEL_INFO, "Ignoring notification from <%s>: Muted", app_id_buffer);
+    analytics_inc(ANALYTICS_DEVICE_METRIC_NOTIFICATION_ANCS_FILTERED_BECAUSE_MUTED_COUNT,
+                  AnalyticsClient_System);
+    return true;
+  }
+
+  // filter out notifications matching content filter pattern
+  if (prv_should_ignore_because_content_filtered(app_notif_prefs, title, message)) {
+    char app_id_buffer[app_id->length + 1];
+    pstring_pstring16_to_string(&app_id->pstr, app_id_buffer);
+
+    PBL_LOG(LOG_LEVEL_INFO, "Ignoring notification from <%s>: Content filtered", app_id_buffer);
     analytics_inc(ANALYTICS_DEVICE_METRIC_NOTIFICATION_ANCS_FILTERED_BECAUSE_MUTED_COUNT,
                   AnalyticsClient_System);
     return true;

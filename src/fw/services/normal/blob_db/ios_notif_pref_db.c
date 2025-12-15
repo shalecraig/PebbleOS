@@ -172,6 +172,57 @@ void ios_notif_pref_db_free_prefs(iOSNotifPrefs *prefs) {
   kernel_free(prefs);
 }
 
+uint32_t ios_notif_pref_db_get_notif_window_timeout(const uint8_t *app_id, int length) {
+  iOSNotifPrefs *prefs = ios_notif_pref_db_get_prefs(app_id, length);
+  if (!prefs) {
+    return 0;  // No prefs found, use global default
+  }
+
+  uint32_t timeout = attribute_get_uint32(&prefs->attr_list, AttributeIdNotifWindowTimeout, 0);
+  ios_notif_pref_db_free_prefs(prefs);
+  return timeout;
+}
+
+status_t ios_notif_pref_db_set_notif_window_timeout(const uint8_t *app_id, int length,
+                                                     uint32_t timeout_ms) {
+  iOSNotifPrefs *prefs = ios_notif_pref_db_get_prefs(app_id, length);
+
+  // We need to create or update the prefs with the new timeout
+  AttributeList attr_list = { 0 };
+  TimelineItemActionGroup action_group = { 0 };
+
+  if (prefs) {
+    // Copy existing attributes and actions
+    attr_list = prefs->attr_list;
+    action_group = prefs->action_group;
+  }
+
+  // Add or update the timeout attribute
+  if (timeout_ms == 0) {
+    // Remove the attribute if setting to 0 (use global default)
+    // For simplicity, we just won't add it - existing attributes will be preserved
+    // but we skip adding the timeout attribute
+    Attribute *existing = attribute_find(&attr_list, AttributeIdNotifWindowTimeout);
+    if (existing) {
+      // Mark as unused by setting id to 0
+      existing->id = AttributeIdUnused;
+    }
+  } else {
+    attribute_list_add_uint32(&attr_list, AttributeIdNotifWindowTimeout, timeout_ms);
+  }
+
+  status_t rv = ios_notif_pref_db_store_prefs(app_id, length, &attr_list, &action_group);
+
+  if (prefs) {
+    ios_notif_pref_db_free_prefs(prefs);
+  } else {
+    // If we created a new attr_list, destroy it
+    attribute_list_destroy_list(&attr_list);
+  }
+
+  return rv;
+}
+
 status_t ios_notif_pref_db_store_prefs(const uint8_t *app_id, int length, AttributeList *attr_list,
                                        TimelineItemActionGroup *action_group) {
   SettingsFile file;

@@ -113,6 +113,10 @@ typedef enum {
   AttributeIdIcon = 48,
   //! (Uint32List) Custom vibration pattern for a notification, used with vibes_enqueue_custom_pattern
   AttributeIdVibrationPattern = 49,
+  //! (uint32_t) Per-app notification window timeout in milliseconds.
+  //! How long the notification popup stays on screen before auto-dismissing.
+  //! 0 means use global default, NOTIF_WINDOW_TIMEOUT_INFINITE means never auto-dismiss.
+  AttributeIdNotifWindowTimeout = 50,
   NumAttributeIds,
 } AttributeId;
 

@@ -542,6 +542,25 @@ cleanup:
 // Timer Functions
 //////////////////////
 
+//! Get the notification window timeout for the current notification.
+//! Returns per-app timeout if configured, otherwise returns the global default.
+static uint32_t prv_get_timeout_for_current_notification(NotificationWindowData *data) {
+  TimelineItem *item = prv_get_current_notification(data);
+  if (item) {
+    // Try to get per-app timeout using the iOS app identifier
+    const char *app_id = attribute_get_string(&item->attr_list, AttributeIdiOSAppIdentifier, "");
+    if (*app_id) {
+      uint32_t per_app_timeout = ios_notif_pref_db_get_notif_window_timeout(
+          (const uint8_t *)app_id, strlen(app_id));
+      if (per_app_timeout != 0) {
+        return per_app_timeout;
+      }
+    }
+  }
+  // Fall back to global default
+  return alerts_get_notification_window_timeout_ms();
+}
+
 static bool prv_should_pop_due_to_inactivity(void) {
   // If not a modal, then we are in the notification history app and the pop timer makes no sense
   // If in DND mode we want to keep the notifications on the screen
@@ -580,7 +599,7 @@ static void prv_refresh_pop_timer(NotificationWindowData *data) {
     return;
   }
 
-  const uint32_t timeout_ms = alerts_get_notification_window_timeout_ms();
+  const uint32_t timeout_ms = prv_get_timeout_for_current_notification(data);
   prv_refresh_pop_timer_with_timeout(data, timeout_ms, false);
 }
 

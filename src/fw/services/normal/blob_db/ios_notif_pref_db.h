@@ -33,6 +33,21 @@ iOSNotifPrefs* ios_notif_pref_db_get_prefs(const uint8_t *app_id, int length);
 //! @param prefs A pointer to prefs returned by ios_notif_pref_db_get_prefs()
 void ios_notif_pref_db_free_prefs(iOSNotifPrefs *prefs);
 
+//! Get the per-app notification window timeout for an iOS app.
+//! @param app_id The iOS app id (e.g., "com.nytimes.NYTimes")
+//! @param length The length of the app_id
+//! @return The timeout in milliseconds, or 0 if no per-app timeout is set (use global default)
+uint32_t ios_notif_pref_db_get_notif_window_timeout(const uint8_t *app_id, int length);
+
+//! Set the per-app notification window timeout for an iOS app.
+//! @param app_id The iOS app id (e.g., "com.nytimes.NYTimes")
+//! @param length The length of the app_id
+//! @param timeout_ms The timeout in milliseconds. Use 0 to clear (use global default),
+//!                   or NOTIF_WINDOW_TIMEOUT_INFINITE to never auto-dismiss.
+//! @return S_SUCCESS on success, error code otherwise
+status_t ios_notif_pref_db_set_notif_window_timeout(const uint8_t *app_id, int length,
+                                                     uint32_t timeout_ms);
+
 //! Adds or updates a record in the notif_pref_db.
 //! @param app_id The iOS app id to check. ex com.apple.MobileSMS
 //! @param length The length of the app_id

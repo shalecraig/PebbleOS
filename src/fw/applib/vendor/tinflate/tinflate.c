@@ -224,11 +224,16 @@ static int tinf_decode_symbol(TINF_DATA *d, TINF_TREE *t)
 }
 
 /* given a data stream, decode dynamic trees from it */
-static void tinf_decode_trees(TINF_DATA *d, TINF_TREE *lt, TINF_TREE *dt)
+/* Returns 0 on success, non-zero on failure (memory allocation error) */
+static int tinf_decode_trees(TINF_DATA *d, TINF_TREE *lt, TINF_TREE *dt)
 {
    unsigned char *lengths = task_malloc(288+32);
    unsigned int hlit, hdist, hclen;
    unsigned int i, num, length;
+
+   if (!lengths) {
+      return TINF_MEMORY_ERROR;
+   }
 
    /* get 5 bits HLIT (257-286) */
    hlit = tinf_read_bits(d, 5, 257);
@@ -296,6 +301,7 @@ static void tinf_decode_trees(TINF_DATA *d, TINF_TREE *lt, TINF_TREE *dt)
    tinf_build_tree(dt, lengths + hlit, hdist);
 
    task_free(lengths);
+   return TINF_OK;
 }
 
 /* ----------------------------- *
@@ -389,7 +395,10 @@ static int tinf_inflate_fixed_block(TINF_DATA *d)
 static int tinf_inflate_dynamic_block(TINF_DATA *d)
 {
    /* decode trees from stream */
-   tinf_decode_trees(d, &d->ltree, &d->dtree);
+   int res = tinf_decode_trees(d, &d->ltree, &d->dtree);
+   if (res != TINF_OK) {
+      return res;
+   }
 
    /* decode block using decoded trees */
    return tinf_inflate_block_data(d, &d->ltree, &d->dtree);

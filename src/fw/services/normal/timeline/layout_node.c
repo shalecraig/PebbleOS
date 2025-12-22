@@ -26,6 +26,9 @@ static GTextNodeText *prv_create_text_node_attribute(const LayoutLayer *layout,
     return NULL;
   }
   GTextNodeText *text_node = graphics_text_node_create_text(0);
+  if (!text_node) {
+    return NULL;
+  }
   text_node->text = (char *)attr_str;
   return text_node;
 }
@@ -98,7 +101,9 @@ static GTextNodeText *prv_create_text_buffer_node_from_config(
   const char *str = config->use_i18n ? i18n_get(config->str, layout) : config->str;
   if (!IS_EMPTY_STRING(str)) {
     text_node = prv_create_text_node_buffer(str);
-    prv_set_text_node_text_parameters_from_config(text_node, layout, &config->text);
+    if (text_node) {
+      prv_set_text_node_text_parameters_from_config(text_node, layout, &config->text);
+    }
   }
   if (config->use_i18n) {
     i18n_free(config->str, layout);
@@ -150,7 +155,9 @@ static GTextNodeTextDynamic *prv_create_text_dynamic_node_from_config(
 static GTextNodeText *prv_create_text_node_from_config(
     const LayoutLayer *layout, const LayoutNodeTextConfig *config) {
   GTextNodeText *text_node = prv_create_text_node_buffer(NULL);
-  prv_set_text_node_text_parameters_from_config(text_node, layout, config);
+  if (text_node) {
+    prv_set_text_node_text_parameters_from_config(text_node, layout, config);
+  }
   return text_node;
 }
 
@@ -202,7 +209,11 @@ static GTextNode *prv_create_node_from_constructor_config(
 
 static GTextNode *prv_create_timeline_icon_node_from_config(
     const LayoutLayer *layout, const LayoutNodeExtentConfig *config) {
-  GTextNode *node = &timeline_layout_create_icon_node((const TimelineLayout *)layout)->node;
+  GTextNodeCustom *custom = timeline_layout_create_icon_node((const TimelineLayout *)layout);
+  if (!custom) {
+    return NULL;
+  }
+  GTextNode *node = &custom->node;
   prv_set_text_node_extent(node, config);
   return node;
 }
@@ -236,6 +247,9 @@ GTextNodeVertical *layout_create_headings_paragraphs_node(
   };
 
   GTextNodeVertical *vertical_node = graphics_text_node_create_vertical(num_headings * 2);
+  if (!vertical_node) {
+    return NULL;
+  }
 
   for (unsigned int i = 0; i < num_headings; i++) {
     const char *heading = string_list_get_at(headings, i);
@@ -250,6 +264,9 @@ GTextNodeVertical *layout_create_headings_paragraphs_node(
     GTextNodeText *paragraph_node =
         (GTextNodeText *)layout_create_text_node_from_config(
             layout, &s_paragraph_config.extent.node);
+    if (!heading_node || !paragraph_node) {
+      break;
+    }
     heading_node->text = (char *)heading;
     paragraph_node->text = (char *)paragraph;
     graphics_text_node_container_add_child(&vertical_node->container, &heading_node->node);
@@ -261,10 +278,12 @@ GTextNodeVertical *layout_create_headings_paragraphs_node(
 
 static GTextNode *prv_create_headings_paragraphs_node(
     const LayoutLayer *layout, const LayoutNodeHeadingsParagraphsConfig *config) {
-  GTextNode *node = &layout_create_headings_paragraphs_node(layout, config)->container.node;
-  if (node) {
-    prv_set_text_node_extent(node, (LayoutNodeExtentConfig *)config);
+  GTextNodeVertical *vertical_node = layout_create_headings_paragraphs_node(layout, config);
+  if (!vertical_node) {
+    return NULL;
   }
+  GTextNode *node = &vertical_node->container.node;
+  prv_set_text_node_extent(node, (LayoutNodeExtentConfig *)config);
   return node;
 }
 
@@ -365,9 +384,11 @@ static void prv_add_metric(TimelineLayout *layout, GTextNodeVertical *vertical_n
   if (index == METRICS_PER_PAGE - 1 && !layout->has_page_break) {
     // after filling a page with metric nodes, add a page break
     layout->has_page_break = true;
-    GTextNode *page_break =
-        &timeline_layout_create_page_break_node((const TimelineLayout *)layout)->node;
-    graphics_text_node_container_add_child(&vertical_node->container, page_break);
+    GTextNodeCustom *page_break_custom =
+        timeline_layout_create_page_break_node((const TimelineLayout *)layout);
+    if (page_break_custom) {
+      graphics_text_node_container_add_child(&vertical_node->container, &page_break_custom->node);
+    }
   }
 #endif
 }
@@ -401,6 +422,9 @@ GTextNodeVertical *layout_create_metrics_node(const LayoutLayer *layout_ref) {
   const int num_nodes = PBL_IF_ROUND_ELSE(num_metrics + 1, // optional page break
                                           num_metrics);
   GTextNodeVertical *vertical_node = graphics_text_node_create_vertical(num_nodes);
+  if (!vertical_node) {
+    return NULL;
+  }
 
   for (unsigned int i = 0; i < num_metrics; i++) {
     const char *name = string_list_get_at(names, i);
@@ -432,7 +456,9 @@ GTextNodeVertical *layout_create_metrics_node(const LayoutLayer *layout_ref) {
     GTextNodeText *metric_node =
         (GTextNodeText *)layout_create_text_node_from_config(
             layout_ref, &metric_config.extent.node);
-    prv_add_metric(layout, vertical_node, i, &metric_node->node);
+    if (metric_node) {
+      prv_add_metric(layout, vertical_node, i, &metric_node->node);
+    }
   }
 
   return vertical_node;
@@ -440,7 +466,11 @@ GTextNodeVertical *layout_create_metrics_node(const LayoutLayer *layout_ref) {
 
 static GTextNode *prv_create_metrics_node(const LayoutLayer *layout,
                                           const LayoutNodeConfig *config) {
-  GTextNode *node = &layout_create_metrics_node(layout)->container.node;
+  GTextNodeVertical *vertical_node = layout_create_metrics_node(layout);
+  if (!vertical_node) {
+    return NULL;
+  }
+  GTextNode *node = &vertical_node->container.node;
   prv_set_text_node_extent(node, (LayoutNodeExtentConfig *)config);
   return node;
 }
@@ -459,6 +489,9 @@ static GTextNode *prv_create_icon_node_from_config(const LayoutLayer *layout,
   kino_layer_set_reel(icon_layer, icon_reel, true /* take_ownership */);
   layer_add_child((void *)&layout->layer, &icon_layer->layer);
   GTextNodeCustom *custom = layout_node_create_kino_layer_wrapper(icon_layer);
+  if (!custom) {
+    return NULL;
+  }
   prv_set_text_node_extent(&custom->node, &config->extent);
   return &custom->node;
 }
@@ -469,23 +502,35 @@ GTextNode *layout_create_text_node_from_config(const LayoutLayer *layout,
     return NULL;
   }
   switch (config->type) {
-    case LayoutNodeType_TextAttribute:
-      return &prv_create_text_attribute_node_from_config(
-          layout, (LayoutNodeTextAttributeConfig *)config)->node;
-    case LayoutNodeType_TextBuffer:
-      return &prv_create_text_buffer_node_from_config(
-          layout, (LayoutNodeTextBufferConfig *)config)->node;
-    case LayoutNodeType_TextDynamic:
-      return &prv_create_text_dynamic_node_from_config(
-          layout, (LayoutNodeTextDynamicConfig *)config)->text.node;
-    case LayoutNodeType_Text:
-      return &prv_create_text_node_from_config(layout, (LayoutNodeTextConfig *)config)->node;
-    case LayoutNodeType_Horizontal:
-      return &prv_create_horizontal_container_node_from_config(
-          layout, (LayoutNodeHorizontalConfig *)config)->container.node;
-    case LayoutNodeType_Vertical:
-      return &prv_create_vertical_container_node_from_config(
-          layout, (LayoutNodeVerticalConfig *)config)->container.node;
+    case LayoutNodeType_TextAttribute: {
+      GTextNodeText *node = prv_create_text_attribute_node_from_config(
+          layout, (LayoutNodeTextAttributeConfig *)config);
+      return node ? &node->node : NULL;
+    }
+    case LayoutNodeType_TextBuffer: {
+      GTextNodeText *node = prv_create_text_buffer_node_from_config(
+          layout, (LayoutNodeTextBufferConfig *)config);
+      return node ? &node->node : NULL;
+    }
+    case LayoutNodeType_TextDynamic: {
+      GTextNodeTextDynamic *node = prv_create_text_dynamic_node_from_config(
+          layout, (LayoutNodeTextDynamicConfig *)config);
+      return node ? &node->text.node : NULL;
+    }
+    case LayoutNodeType_Text: {
+      GTextNodeText *node = prv_create_text_node_from_config(layout, (LayoutNodeTextConfig *)config);
+      return node ? &node->node : NULL;
+    }
+    case LayoutNodeType_Horizontal: {
+      GTextNodeHorizontal *node = prv_create_horizontal_container_node_from_config(
+          layout, (LayoutNodeHorizontalConfig *)config);
+      return node ? &node->container.node : NULL;
+    }
+    case LayoutNodeType_Vertical: {
+      GTextNodeVertical *node = prv_create_vertical_container_node_from_config(
+          layout, (LayoutNodeVerticalConfig *)config);
+      return node ? &node->container.node : NULL;
+    }
     case LayoutNodeType_Constructor:
       return prv_create_node_from_constructor_config(layout, (LayoutNodeConstructorConfig *)config);
     case LayoutNodeType_Icon:
@@ -496,8 +541,10 @@ GTextNode *layout_create_text_node_from_config(const LayoutLayer *layout,
 #endif
     case LayoutNodeType_TimelineIcon:
       return prv_create_timeline_icon_node_from_config(layout, (LayoutNodeExtentConfig *)config);
-    case LayoutNodeType_TimelinePageBreak:
-      return &timeline_layout_create_page_break_node((const TimelineLayout *)layout)->node;
+    case LayoutNodeType_TimelinePageBreak: {
+      GTextNodeCustom *node = timeline_layout_create_page_break_node((const TimelineLayout *)layout);
+      return node ? &node->node : NULL;
+    }
     case LayoutNodeType_TimelineMetrics:
 #if !PLATFORM_TINTIN
       return prv_create_metrics_node(layout, config);

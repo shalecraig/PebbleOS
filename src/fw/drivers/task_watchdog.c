@@ -44,10 +44,11 @@
 #define APP_THROTTLE_TIME_MS 300
 
 // These bits get set by calls to task_watchdog_bit_set and checked and cleared periodically by our watchdog feed
-static PebbleTaskBitset s_watchdog_bits = 0;
+// Marked volatile since accessed from both ISR (prv_task_watchdog_feed) and task context
+static volatile PebbleTaskBitset s_watchdog_bits = 0;
 
 #define DEFAULT_TASK_WATCHDOG_MASK ( 1 << PebbleTask_NewTimers )
-static PebbleTaskBitset s_watchdog_mask = DEFAULT_TASK_WATCHDOG_MASK;
+static volatile PebbleTaskBitset s_watchdog_mask = DEFAULT_TASK_WATCHDOG_MASK;
 
 _Static_assert(sizeof(s_watchdog_bits) == sizeof(s_watchdog_mask),
                "The task watchdog bitset has a different size than the "
@@ -66,10 +67,12 @@ static TimerID s_throttle_timer_id = TIMER_INVALID_ID;
 #endif
 
 // How many ticks have elapsed since we fed the HW watchdog
-static uint8_t s_ticks_since_successful_feed = 0;
+// Marked volatile since accessed from both ISR and task context
+static volatile uint8_t s_ticks_since_successful_feed = 0;
 
 // Pause state: number of ticks remaining in pause
-static uint32_t s_pause_ticks_remaining = 0;
+// Marked volatile since accessed from both ISR and task context
+static volatile uint32_t s_pause_ticks_remaining = 0;
 
 // We use this interrupt vector for our lower priority interrupts
 #if MICRO_FAMILY_NRF5
@@ -177,7 +180,8 @@ static void prv_app_task_throttle_start(void) {
   // if an app results in system throttling, log it at the INFO level at least
   // once to aid in debug
   if (strcmp(last_throttled_task, curr_task) != 0) {
-    strcpy(last_throttled_task, curr_task);
+    strncpy(last_throttled_task, curr_task, sizeof(last_throttled_task) - 1);
+    last_throttled_task[sizeof(last_throttled_task) - 1] = '\0';
     PBL_LOG(LOG_LEVEL_INFO, "Starting App Throttling for %s", curr_task);
   } else {
     PBL_LOG(LOG_LEVEL_DEBUG, "Starting App Throttling for %s", curr_task);

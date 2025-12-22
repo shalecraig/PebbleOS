@@ -113,6 +113,9 @@ typedef enum {
   AttributeIdIcon = 48,
   //! (Uint32List) Custom vibration pattern for a notification, used with vibes_enqueue_custom_pattern
   AttributeIdVibrationPattern = 49,
+  //! (String) Substring pattern to filter notifications by content (title/body).
+  //! If the pattern matches, the notification is filtered out.
+  AttributeIdFilterPattern = 50,
   NumAttributeIds,
 } AttributeId;
 

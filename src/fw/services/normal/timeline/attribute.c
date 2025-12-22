@@ -56,6 +56,7 @@ static AttributeType prv_attribute_type(AttributeId id) {
     case AttributeIdAddress:
     case AttributeIdAuthCode:
     case AttributeIdSubtitleTemplateString:
+    case AttributeIdFilterPattern:
       return AttributeTypeString;
     case AttributeIdAncsAction:
     case AttributeIdSportsGameState:

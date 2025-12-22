@@ -167,6 +167,7 @@ typedef enum {
   ActivitySleepStateRestfulSleep,
   ActivitySleepStateLightSleep,
   ActivitySleepStateUnknown,
+  ActivitySleepStateCharging,  // Watch is charging, sleep tracking unavailable
 } ActivitySleepState;
 
 

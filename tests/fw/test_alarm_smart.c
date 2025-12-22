@@ -7,6 +7,7 @@
 #include "fake_rtc.h"
 #include "fake_new_timer.h"
 
+#include "services/common/battery/battery_state.h"
 #include "stubs_blob_db_sync.h"
 #include "stubs_blob_db_sync_util.h"
 
@@ -20,9 +21,18 @@ int rand(void) {
 static ActivitySleepState s_sleep_state = ActivitySleepStateAwake;
 static uint16_t s_sleep_state_seconds = 0;
 static uint16_t s_last_vmc = 0;
+static bool s_battery_is_plugged = false;
 
 bool activity_tracking_on(void) {
   return true;
+}
+
+BatteryChargeState battery_get_charge_state(void) {
+  return (BatteryChargeState) {
+    .charge_percent = 50,
+    .is_charging = s_battery_is_plugged,
+    .is_plugged = s_battery_is_plugged,
+  };
 }
 
 bool activity_get_metric(ActivityMetric metric, uint32_t history_len, int32_t *history) {
@@ -62,6 +72,7 @@ void test_alarm_smart__initialize(void) {
   s_num_alarms_fired = 0;
   s_last_vmc = 0;
   s_rand = 0;
+  s_battery_is_plugged = false;
 
   // Setup time
   TimezoneInfo tz_info = {
@@ -274,5 +285,77 @@ void test_alarm_smart__across_midnight_boundary(void) {
   cl_assert_equal_i(s_num_alarm_events_put, 1);
   cl_assert_equal_i(s_num_timeline_adds, 2);
   cl_assert_equal_i(s_num_timeline_removes, 1);
+  cl_assert_equal_i(s_last_timeline_item_added->header.timestamp, rtc_get_time());
+}
+
+void test_alarm_smart__unknown_sleep_state_waits_until_scheduled_time(void) {
+  // When watch is off-wrist, sleep state is Unknown.
+  // The smart alarm should NOT trigger early - it should wait until the scheduled time.
+  AlarmId id;
+  id = alarm_create(&(AlarmInfo) { .hour = 10, .minute = 30, .kind = ALARM_KIND_EVERYDAY, .is_smart = true });
+  prv_assert_alarm_config(id, 10, 30, false, ALARM_KIND_EVERYDAY, s_every_day_schedule);
+  cl_assert_equal_i(s_num_timeline_adds, 3);
+  cl_assert_equal_i(s_num_timeline_removes, 0);
+
+  // Simulate watch off-wrist (not charging) - sleep state is unknown
+  s_battery_is_plugged = false;
+  s_sleep_state = ActivitySleepStateUnknown;
+  s_sleep_state_seconds = 0;
+  s_last_vmc = 0;
+
+  // Smart alarm cron fires at T-30min, but should NOT trigger with unknown state
+  prv_set_time(s_current_day, 10, 0);
+  cron_service_wakeup();
+  cl_assert_equal_i(s_num_alarms_fired, 1);
+  cl_assert_equal_i(s_num_alarm_events_put, 0);  // Should NOT have triggered
+
+  // The alarm should keep snoozing until the scheduled time (30 snoozes of 1 min each)
+  for (int i = 0; i < SMART_ALARM_MAX_SMART_SNOOZE - 1; i++) {
+    prv_set_time(s_current_day, 10, i + 1);
+    stub_new_timer_invoke(1);
+    // Should still not trigger until we reach max snooze count
+    cl_assert_equal_i(s_num_alarm_events_put, 0);
+  }
+
+  // At T+0 (scheduled time), the alarm should finally trigger due to timeout
+  prv_set_time(s_current_day, 10, 30);
+  stub_new_timer_invoke(1);
+  cl_assert_equal_i(s_num_alarm_events_put, 1);  // Now it should trigger
+  cl_assert_equal_i(s_last_timeline_item_added->header.timestamp, rtc_get_time());
+}
+
+void test_alarm_smart__charging_waits_until_scheduled_time(void) {
+  // When watch is charging, the smart alarm should NOT trigger early.
+  // It should wait until the scheduled alarm time.
+  AlarmId id;
+  id = alarm_create(&(AlarmInfo) { .hour = 10, .minute = 30, .kind = ALARM_KIND_EVERYDAY, .is_smart = true });
+  prv_assert_alarm_config(id, 10, 30, false, ALARM_KIND_EVERYDAY, s_every_day_schedule);
+  cl_assert_equal_i(s_num_timeline_adds, 3);
+  cl_assert_equal_i(s_num_timeline_removes, 0);
+
+  // Simulate watch charging - battery is plugged in
+  s_battery_is_plugged = true;
+  s_sleep_state = ActivitySleepStateAwake;  // Would normally trigger, but charging overrides
+  s_sleep_state_seconds = 0;
+  s_last_vmc = 0;
+
+  // Smart alarm cron fires at T-30min, but should NOT trigger when charging
+  prv_set_time(s_current_day, 10, 0);
+  cron_service_wakeup();
+  cl_assert_equal_i(s_num_alarms_fired, 1);
+  cl_assert_equal_i(s_num_alarm_events_put, 0);  // Should NOT have triggered
+
+  // The alarm should keep snoozing until the scheduled time (30 snoozes of 1 min each)
+  for (int i = 0; i < SMART_ALARM_MAX_SMART_SNOOZE - 1; i++) {
+    prv_set_time(s_current_day, 10, i + 1);
+    stub_new_timer_invoke(1);
+    // Should still not trigger until we reach max snooze count
+    cl_assert_equal_i(s_num_alarm_events_put, 0);
+  }
+
+  // At T+0 (scheduled time), the alarm should finally trigger due to timeout
+  prv_set_time(s_current_day, 10, 30);
+  stub_new_timer_invoke(1);
+  cl_assert_equal_i(s_num_alarm_events_put, 1);  // Now it should trigger
   cl_assert_equal_i(s_last_timeline_item_added->header.timestamp, rtc_get_time());
 }

@@ -11,6 +11,7 @@
 #include "os/mutex.h"
 #include "process_management/app_install_manager.h"
 #include "services/common/analytics/analytics.h"
+#include "services/common/battery/battery_state.h"
 #include "services/common/clock.h"
 #include "services/common/i18n/i18n.h"
 #include "services/common/new_timer/new_timer.h"
@@ -143,6 +144,12 @@ static void prv_file_close_and_unlock(SettingsFile *file) {
 
 // ----------------------------------------------------------------------------------------------
 static ActivitySleepState prv_get_sleep_state(void) {
+  // If the watch is plugged in/charging, we can't reliably track sleep
+  BatteryChargeState battery_state = battery_get_charge_state();
+  if (battery_state.is_plugged) {
+    return ActivitySleepStateCharging;
+  }
+
 #if CAPABILITY_HAS_HEALTH_TRACKING
   int32_t sleep_state;
   const bool rv = activity_get_metric(ActivityMetricSleepState, 1, &sleep_state);
@@ -170,7 +177,6 @@ static bool prv_should_smart_alarm_trigger(const AlarmConfig *config) {
     return true;
   }
   switch (prv_get_sleep_state()) {
-    case ActivitySleepStateUnknown:
     case ActivitySleepStateAwake:
       // The user is awake, just trigger
       return true;
@@ -178,6 +184,14 @@ static bool prv_should_smart_alarm_trigger(const AlarmConfig *config) {
     case ActivitySleepStateRestfulSleep:
       // The user is asleep, trigger if VMC > 0
       return prv_get_vmc() > 0;
+    case ActivitySleepStateUnknown:
+      // Can't determine sleep state (e.g., watch is off-wrist).
+      // Wait until the scheduled alarm time rather than triggering early.
+      return false;
+    case ActivitySleepStateCharging:
+      // Watch is charging, sleep tracking is unavailable.
+      // Wait until the scheduled alarm time rather than triggering early.
+      return false;
   }
   return false;
 }

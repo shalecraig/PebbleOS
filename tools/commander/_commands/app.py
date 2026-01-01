@@ -71,3 +71,36 @@ def app_available(cmdr, idnum):
     if idnum == 0:
         raise exceptions.ParameterError('idnum out of range: %d' % idnum)
     return cmdr.send_prompt_command("app available %d" % idnum)
+
+
+@PebbleCommander.command()
+def app_status(cmdr, idnum):
+    """ Get the status of an application (RUNNING, INSTALLED, or NOT_INSTALLED).
+
+    Returns status information about the app:
+    - RUNNING <type> <name>: App is currently running (type is 'app' or 'worker')
+    - INSTALLED <name>: App is installed but not running
+    - NOT_INSTALLED: App is not installed
+    """
+    idnum = int(str(idnum), 0)
+    if idnum == 0:
+        raise exceptions.ParameterError('idnum out of range: %d' % idnum)
+    return cmdr.send_prompt_command("app status %d" % idnum)
+
+
+@PebbleCommander.command()
+def app_clear_db(cmdr):
+    """ Clear all 3rd party apps from the database and cache.
+
+    This is useful for ensuring a fresh state before reinstalling apps
+    in the emulator without having to restart QEMU. Use this before
+    reinstalling an app to ensure no cached state from previous versions
+    persists.
+
+    Usage:
+        app-clear-db
+        # Then reinstall your app
+    """
+    ret = cmdr.send_prompt_command("app clear db")
+    if not ret[0].startswith("OK"):
+        raise exceptions.PromptResponseError(ret)

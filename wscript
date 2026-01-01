@@ -1361,6 +1361,17 @@ def qemu_prf(ctx):
     Options.commands = ['qemu_image_prf_micro', 'qemu_launch'] + Options.commands
 
 
+def qemu_fresh(ctx):
+    """Start the emulator with a completely fresh state (rebuilds SPI flash).
+
+    This is useful when testing app changes and you want to ensure no cached
+    state from previous app versions persists. Unlike the regular 'qemu' command,
+    this rebuilds the SPI flash image which clears all installed apps and data.
+    """
+    from waflib import Options
+    Options.commands = ['qemu_image_micro', 'qemu_image_spi', 'qemu_launch'] + Options.commands
+
+
 class QemuLaunchCommand(BuildContext):
     cmd = 'qemu_launch'
     fun = 'qemu_launch'

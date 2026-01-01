@@ -122,6 +122,8 @@ extern void command_get_active_app_metadata(void);
 extern void command_app_list(void);
 extern void command_app_launch(const char* app_num_str);
 extern void command_app_remove(const char* app_num_str);
+extern void command_app_status(const char* app_num_str);
+extern void command_app_clear_db(void);
 
 extern void command_worker_launch(const char* app_num_str);
 extern void command_worker_kill(void);
@@ -359,6 +361,8 @@ static const Command s_prompt_commands[] = {
   { "app list", command_app_list, 0 },
   { "app launch", command_app_launch, 1 },
   { "app remove", command_app_remove, 1 },
+  { "app status", command_app_status, 1 },
+  { "app clear db", command_app_clear_db, 0 },
 #endif
   // End of automation commands
   // ====================================================================================

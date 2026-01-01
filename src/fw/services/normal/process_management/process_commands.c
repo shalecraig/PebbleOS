@@ -4,6 +4,7 @@
 #include "console/prompt.h"
 #include "process_management/app_install_manager.h"
 #include "process_management/app_manager.h"
+#include "process_management/worker_manager.h"
 #include "services/normal/app_cache.h"
 #include "services/normal/blob_db/app_db.h"
 #include "services/normal/filesystem/pfs.h"
@@ -85,4 +86,43 @@ void command_worker_launch(const char *id_str) {
   } else {
     prompt_send_response("No worker with id");
   }
+}
+
+void command_app_status(const char *id_str) {
+  int32_t id = atoi(id_str);
+  if (id == 0) {
+    prompt_send_response("invalid app number");
+    return;
+  }
+
+  char buffer[128];
+
+  // Check if app is installed
+  AppInstallEntry entry;
+  bool installed = app_install_get_entry_for_install_id(id, &entry);
+
+  if (!installed) {
+    prompt_send_response("NOT_INSTALLED");
+    return;
+  }
+
+  // Check if app is currently running
+  bool app_running = app_install_is_app_running(id);
+  bool worker_running = app_install_is_worker_running(id);
+
+  if (app_running || worker_running) {
+    const char *type = app_running ? "app" : "worker";
+    prompt_send_response_fmt(buffer, sizeof(buffer), "RUNNING %s %s", type, entry.name);
+  } else {
+    // App is installed but not running - could be idle or crashed previously
+    prompt_send_response_fmt(buffer, sizeof(buffer), "INSTALLED %s", entry.name);
+  }
+}
+
+void command_app_clear_db(void) {
+  // Clear all 3rd party apps from the database and cache.
+  // This is useful for ensuring a fresh state before reinstalling apps
+  // in the emulator without having to restart QEMU.
+  app_install_clear_app_db();
+  prompt_send_response("OK");
 }

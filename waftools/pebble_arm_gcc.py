@@ -155,15 +155,16 @@ def configure(conf):
       c_warnings.append('-Wno-expansion-to-defined')
       c_warnings.append('-Wno-enum-conversion')
 
-      if not ('13', '0') <= conf.env.CC_VERSION <= ('14', '2', '1'):
+      if not ('13', '0') <= conf.env.CC_VERSION <= ('15', '2', '1'):
         # Verify the toolchain we're using is allowed. This is to prevent us from accidentally
         # building and releasing firmwares that are built in ways we haven't tested.
 
         if not conf.options.relax_toolchain_restrictions:
             TOOLCHAIN_ERROR_MSG = \
 """=== INVALID TOOLCHAIN ===
-Either upgrade your toolchain using the process listed here:
-    https://pebbletechnology.atlassian.net/wiki/display/DEV/Firmware+Toolchain
+GCC version must be between 13.0 and 15.2.1.
+Download the Arm GNU Toolchain from:
+    https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
 Or re-configure with the --relax_toolchain_restrictions option. """
 
             conf.fatal('Invalid toolchain detected!\n' + \

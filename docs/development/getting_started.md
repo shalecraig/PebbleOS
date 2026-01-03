@@ -7,7 +7,8 @@ Follow this guide to:
 
 ## ARM toolchain + system-level dependencies
 
-First, download the Arm GNU toolchain `arm-none-eabi` 14.2.Rel1 from [here](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads).
+First, download the Arm GNU toolchain `arm-none-eabi` from [here](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads).
+PebbleOS supports GCC versions 13.0 through 15.2.1. The recommended version is 14.2.Rel1 or later.
 Make sure to make it available on your path `PATH` and then check GCC version is reported correctly:
 
 ```shell

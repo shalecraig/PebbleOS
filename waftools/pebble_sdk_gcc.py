@@ -26,6 +26,13 @@ def configure(conf):
 
     conf.load('gcc')
 
+    # Require GCC 13.0 or later for SDK builds
+    if conf.env.CC_VERSION < ('13', '0'):
+        conf.fatal('GCC 13.0 or later is required. Found: %s\n'
+                   'Download the Arm GNU Toolchain from:\n'
+                   '    https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads'
+                   % '.'.join(conf.env.CC_VERSION))
+
     pebble_cflags = ['-std=c99',
                      '-mcpu=cortex-m3',
                      '-mthumb',
